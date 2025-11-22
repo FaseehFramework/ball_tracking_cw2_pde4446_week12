@@ -13,8 +13,8 @@ FRAME_WIDTH = 600
 # ============================================================
 # PD CONTROLLER TUNING
 # ============================================================
-PAN_P_GAIN = 0.00002
-TILT_P_GAIN = 0.00002
+PAN_P_GAIN = 0.0008
+TILT_P_GAIN = 0.0008
 
 PAN_D_GAIN = 0.0
 TILT_D_GAIN = 0.0
@@ -31,7 +31,7 @@ BUFFER_SIZE = 64    # Length of the tracking trail
 # ============================================================
 # COMMAND THROTTLING
 # ============================================================
-COMMAND_INTERVAL = 0.05
+COMMAND_INTERVAL = 0.08
 
 # ============================================================
 # EXPONENTIAL SMOOTHING
@@ -42,8 +42,8 @@ EMA_ALPHA = 0.25
 # HSV COLOR DETECTION DEFAULTS
 # ============================================================
 HSV_INITIAL_H_MIN = 0
-HSV_INITIAL_S_MIN = 55
-HSV_INITIAL_V_MIN = 40
-HSV_INITIAL_H_MAX = 3
+HSV_INITIAL_S_MIN = 187
+HSV_INITIAL_V_MIN = 66
+HSV_INITIAL_H_MAX = 179
 HSV_INITIAL_S_MAX = 255
-HSV_INITIAL_V_MAX = 255
+HSV_INITIAL_V_MAX = 133
