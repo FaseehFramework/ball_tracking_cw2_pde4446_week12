@@ -6,30 +6,10 @@ import cv2
 import imutils
 import time
 import serial
+import config
 
+# Configuration in config.py
 
-# ============================================================
-# CONFIGURATION
-# ============================================================
-SERIAL_PORT = 'COM12'
-BAUD_RATE = 115200
-
-# --- PD CONTROLLER TUNING ---
-PAN_P_GAIN = 0.00002
-TILT_P_GAIN = 0.00002
-
-PAN_D_GAIN = 0.0
-TILT_D_GAIN = 0.0
-
-MAX_SPEED = 0.008
-DEADBAND = 15
-CIRCLE_RADIUS = 20
-
-# --- COMMAND THROTTLING ---
-COMMAND_INTERVAL = 0.06
-
-# --- EXPONENTIAL SMOOTHING ---
-EMA_ALPHA = 0.25
 
 
 # ============================================================
@@ -62,11 +42,11 @@ def circle_overlaps_rectangle(cx, cy, radius, rect_x1, rect_y1, rect_x2, rect_y2
 # SERIAL CONNECTION
 # ============================================================
 try:
-    ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+    ser = serial.Serial(config.SERIAL_PORT, config.BAUD_RATE, timeout=1)
     time.sleep(0.5)
     ser.reset_input_buffer()
     ser.reset_output_buffer()
-    print(f"✓ Connected to {SERIAL_PORT} at {BAUD_RATE} baud")
+    print(f"✓ Connected to {config.SERIAL_PORT} at {config.BAUD_RATE} baud")
 except Exception as e:
     print(f"✗ Error connecting to serial: {e}")
     ser = None
@@ -77,24 +57,24 @@ except Exception as e:
 # ============================================================
 ap = argparse.ArgumentParser()
 ap.add_argument("-v", "--video", help="path to the (optional) video file")
-ap.add_argument("-b", "--buffer", type=int, default=64, help="max buffer size")
+ap.add_argument("-b", "--buffer", type=int, default=config.BUFFER_SIZE, help="max buffer size")
 
 try:
     args = vars(ap.parse_args())
 except:
-    args = {'video': None, 'buffer': 64}
+    args = {'video': None, 'buffer': config.BUFFER_SIZE}
 
 
 # ============================================================
 # HSV COLOR DETECTION - INITIAL VALUES
 # ============================================================
 # Default values for red color detection
-initial_h_min = 0
-initial_s_min = 55
-initial_v_min = 40
-initial_h_max = 3
-initial_s_max = 255
-initial_v_max = 255
+initial_h_min = config.HSV_INITIAL_H_MIN
+initial_s_min = config.HSV_INITIAL_S_MIN
+initial_v_min = config.HSV_INITIAL_V_MIN
+initial_h_max = config.HSV_INITIAL_H_MAX
+initial_s_max = config.HSV_INITIAL_S_MAX
+initial_v_max = config.HSV_INITIAL_V_MAX
 
 pts = deque(maxlen=args["buffer"])
 
@@ -120,7 +100,7 @@ frame_count = 0
 # ============================================================
 print("Starting video stream...")
 if not args.get("video", False):
-    vs = VideoStream(src=1).start()
+    vs = VideoStream(src=config.VIDEO_SOURCE).start()
     time.sleep(2.0)
 else:
     vs = cv2.VideoCapture(args["video"])
@@ -181,7 +161,7 @@ try:
             continue
 
         # --- PREPROCESSING ---
-        frame = imutils.resize(frame, width=600)
+        frame = imutils.resize(frame, width=config.FRAME_WIDTH)
         (H, W) = frame.shape[:2]
         centerX = W // 2
         centerY = H // 2
@@ -212,21 +192,21 @@ try:
             if radius > 10:
                 # --- DRAW DETECTION ---
                 cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)
-                cv2.circle(frame, center, CIRCLE_RADIUS, (0, 0, 255), -1)
+                cv2.circle(frame, center, config.CIRCLE_RADIUS, (0, 0, 255), -1)
 
                 # --- CALCULATE ERROR ---
                 errorPan = center[0] - centerX
                 errorTilt = center[1] - centerY
 
                 # --- DEADBAND RECTANGLE BOUNDS ---
-                deadband_x1 = centerX - DEADBAND
-                deadband_y1 = centerY - DEADBAND
-                deadband_x2 = centerX + DEADBAND
-                deadband_y2 = centerY + DEADBAND
+                deadband_x1 = centerX - config.DEADBAND
+                deadband_y1 = centerY - config.DEADBAND
+                deadband_x2 = centerX + config.DEADBAND
+                deadband_y2 = centerY + config.DEADBAND
 
                 # --- CHECK IF CIRCLE IS OUTSIDE DEADBAND ---
                 circle_outside_deadband = not circle_overlaps_rectangle(
-                    center[0], center[1], CIRCLE_RADIUS,
+                    center[0], center[1], config.CIRCLE_RADIUS,
                     deadband_x1, deadband_y1, deadband_x2, deadband_y2
                 )
 
@@ -235,20 +215,20 @@ try:
                 # --- TRACKING LOGIC ---
                 if circle_outside_deadband:
                     # PD CONTROL FOR PAN
-                    if abs(errorPan) > DEADBAND:
+                    if abs(errorPan) > config.DEADBAND:
                         derivative_pan = errorPan - prev_errorPan
-                        delta_pan = (errorPan * PAN_P_GAIN) + (derivative_pan * PAN_D_GAIN)
-                        delta_pan = max(-MAX_SPEED, min(MAX_SPEED, delta_pan))
+                        delta_pan = (errorPan * config.PAN_P_GAIN) + (derivative_pan * config.PAN_D_GAIN)
+                        delta_pan = max(-config.MAX_SPEED, min(config.MAX_SPEED, delta_pan))
                         current_pan -= delta_pan #THIS WILL
                         should_move = True
                     
                     prev_errorPan = errorPan
 
                     # PD CONTROL FOR TILT
-                    if abs(errorTilt) > DEADBAND:
+                    if abs(errorTilt) > config.DEADBAND:
                         derivative_tilt = errorTilt - prev_errorTilt
-                        delta_tilt = (errorTilt * TILT_P_GAIN) + (derivative_tilt * TILT_D_GAIN)
-                        delta_tilt = max(-MAX_SPEED, min(MAX_SPEED, delta_tilt))
+                        delta_tilt = (errorTilt * config.TILT_P_GAIN) + (derivative_tilt * config.TILT_D_GAIN)
+                        delta_tilt = max(-config.MAX_SPEED, min(config.MAX_SPEED, delta_tilt))
                         current_tilt -= delta_tilt #THIS WILL
                         should_move = True
                     
@@ -258,8 +238,8 @@ try:
                     prev_errorTilt = 0
 
                 # --- EXPONENTIAL SMOOTHING ---
-                smoothed_pan = EMA_ALPHA * current_pan + (1 - EMA_ALPHA) * smoothed_pan
-                smoothed_tilt = EMA_ALPHA * current_tilt + (1 - EMA_ALPHA) * smoothed_tilt
+                smoothed_pan = config.EMA_ALPHA * current_pan + (1 - config.EMA_ALPHA) * smoothed_pan
+                smoothed_tilt = config.EMA_ALPHA * current_tilt + (1 - config.EMA_ALPHA) * smoothed_tilt
 
                 smoothed_pan = max(-1.0, min(1.0, smoothed_pan))
                 smoothed_tilt = max(-1.0, min(1.0, smoothed_tilt))
@@ -267,7 +247,7 @@ try:
                 # --- SEND SERIAL COMMAND ---
                 if should_move and ser is not None and ser.is_open:
                     current_time = time.time()
-                    if current_time - last_command_time >= COMMAND_INTERVAL:
+                    if current_time - last_command_time >= config.COMMAND_INTERVAL:
                         if ser.out_waiting > 100:
                             ser.reset_output_buffer()
                         
@@ -286,8 +266,8 @@ try:
         else:
             prev_errorPan = 0
             prev_errorTilt = 0
-            cv2.rectangle(frame, (centerX - DEADBAND, centerY - DEADBAND), 
-                          (centerX + DEADBAND, centerY + DEADBAND), (0, 255, 0), 1)
+            cv2.rectangle(frame, (centerX - config.DEADBAND, centerY - config.DEADBAND), 
+                          (centerX + config.DEADBAND, centerY + config.DEADBAND), (0, 255, 0), 1)
 
         # --- DRAW CENTER CROSSHAIR ---
         cv2.line(frame, (centerX - 10, centerY), (centerX + 10, centerY), (255, 0, 0), 1)
