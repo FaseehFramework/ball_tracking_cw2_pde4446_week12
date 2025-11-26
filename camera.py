@@ -7,6 +7,8 @@ import os
 import threading
 import numpy as np
 import config
+import torch
+from ultralytics import YOLO
 
 class VideoCamera(object):
     def __init__(self):
@@ -50,6 +52,11 @@ class VideoCamera(object):
         self.presets_file = "presets.json"
         self.presets = self.load_presets_from_disk()
 
+        # --- YOLO MODEL INIT ---
+        self.yolo_model = None
+        self.yolo_ready = False
+        self.load_yolo_model()
+
     def connect_serial(self, port_name):
         if hasattr(self, 'ser') and self.ser is not None and self.ser.is_open:
             self.ser.close()
@@ -66,6 +73,31 @@ class VideoCamera(object):
             self.ser = None
             print(f"✗ SERIAL ERROR: {e}")
             return False, str(e)
+    
+    def load_yolo_model(self):
+        """Load YOLO model with error handling"""
+        try:
+            if not os.path.exists(config.YOLO_MODEL_PATH):
+                print(f"✗ YOLO MODEL NOT FOUND: {config.YOLO_MODEL_PATH}")
+                return False
+            
+            self.yolo_model = YOLO(config.YOLO_MODEL_PATH)
+            
+            # Move to GPU if available and requested
+            if config.YOLO_USE_GPU and torch.cuda.is_available():
+                self.yolo_model.to("cuda")
+                self.yolo_model.half()  # FP16 for speed
+                print("✓ YOLO MODEL LOADED (GPU)")
+            else:
+                print("✓ YOLO MODEL LOADED (CPU)")
+            
+            self.yolo_ready = True
+            return True
+            
+        except Exception as e:
+            print(f"✗ YOLO MODEL ERROR: {e}")
+            self.yolo_ready = False
+            return False
 
     def start(self):
         if self.started: return self
@@ -239,6 +271,86 @@ class VideoCamera(object):
                 except Exception as e:
                     print(f"Serial Error: {e}")
 
-    def process_yolo(self, frame, cx, cy):
-        cv2.putText(frame, "YOLO MODE", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+    def process_yolo(self, frame, centerX, centerY):
+        """Process frame using YOLO detection"""
+        
+        # If model not ready, show error and return
+        if not self.yolo_ready or self.yolo_model is None:
+            cv2.putText(frame, "YOLO MODEL NOT LOADED", (20, 50), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+            return frame
+        
+        # Run YOLO inference
+        try:
+            results = self.yolo_model(frame, imgsz=config.YOLO_INFERENCE_SIZE, 
+                                      conf=config.YOLO_CONFIDENCE_THRESHOLD, verbose=False)
+            
+            detections = results[0].boxes
+            object_count = 0
+            best_detection = None
+            best_area = 0
+            
+            # Process all detections
+            for i in range(len(detections)):
+                xyxy_tensor = detections[i].xyxy.cpu()
+                xyxy = xyxy_tensor.numpy().squeeze()
+                xmin, ymin, xmax, ymax = xyxy.astype(int)
+                
+                classidx = int(detections[i].cls.item())
+                classname = results[0].names[classidx]
+                conf = detections[i].conf.item()
+                
+                if conf >= config.YOLO_CONFIDENCE_THRESHOLD:
+                    # Draw bounding box
+                    color = (0, 255, 255)  # Yellow for detected objects
+                    cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
+                    
+                    # Draw label with confidence
+                    label = f"{classname} {int(conf * 100)}%"
+                    labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                    labelymin = max(ymin, labelSize[1] + 10)
+                    
+                    cv2.rectangle(frame, (xmin, labelymin - labelSize[1] - 10), 
+                                 (xmin + labelSize[0], labelymin + baseLine - 10), color, cv2.FILLED)
+                    cv2.putText(frame, label, (xmin, labelymin - 7), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+                    
+                    # Calculate center of bounding box
+                    bbox_center_x = int((xmin + xmax) / 2)
+                    bbox_center_y = int((ymin + ymax) / 2)
+                    
+                    # Draw center point
+                    cv2.circle(frame, (bbox_center_x, bbox_center_y), 5, (0, 0, 255), -1)
+                    
+                    # Track the largest detection (by area)
+                    area = (xmax - xmin) * (ymax - ymin)
+                    if area > best_area:
+                        best_area = area
+                        best_detection = (bbox_center_x, bbox_center_y)
+                    
+                    object_count += 1
+            
+            # Display object count
+            cv2.putText(frame, f"Objects: {object_count}", (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            
+            # If tracking is active and we have a detection, update servos
+            if self.tracking_active and best_detection:
+                target_x, target_y = best_detection
+                
+                # Check if outside deadband
+                db = config.DEADBAND
+                should_move = (target_x < centerX - db or target_x > centerX + db or 
+                              target_y < centerY - db or target_y > centerY + db)
+                
+                if should_move:
+                    # Highlight the tracked object
+                    cv2.line(frame, (centerX, centerY), (target_x, target_y), (0, 255, 0), 2)
+                    self.update_servos(target_x, target_y, centerX, centerY)
+            
+        except Exception as e:
+            cv2.putText(frame, f"YOLO ERROR: {str(e)[:30]}", (20, 50), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+            print(f"YOLO Processing Error: {e}")
+        
         return frame

@@ -47,3 +47,11 @@ HSV_INITIAL_V_MIN = 66
 HSV_INITIAL_H_MAX = 179
 HSV_INITIAL_S_MAX = 255
 HSV_INITIAL_V_MAX = 133
+
+# ============================================================
+# YOLO MODEL CONFIGURATION
+# ============================================================
+YOLO_MODEL_PATH = r'D:\VIT_D\MDX\S&MC\cw2\project_root\yolo\my_model\my_model.pt'
+YOLO_CONFIDENCE_THRESHOLD = 0.5
+YOLO_USE_GPU = True  # Will auto-detect if CUDA is available
+YOLO_INFERENCE_SIZE = 640  # Image size for inference (matches your frame_target_width)
