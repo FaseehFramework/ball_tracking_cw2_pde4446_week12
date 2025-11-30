@@ -7,7 +7,7 @@ import torch
 from ultralytics import YOLO
 
 # Hardcoded model path and video source index
-modelpath = r'D:\VIT_D\MDX\S&MC\cw2\project_root\yolo\my_model\my_model.pt'
+modelpath = r'D:\VIT_D\MDX\S&MC\cw2\project_root\yolo\my_model\my_model.pt' #change to best.pt to test nano model
 imgsource = 1  # Camera index or video file path or image source
 minthresh = 0.5  # Confidence threshold
 userres = None  # Set resolution to None to use default camera resolution
