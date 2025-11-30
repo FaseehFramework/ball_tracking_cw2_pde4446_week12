@@ -1,0 +1,2 @@
+cd "D:\VIT_D\MDX\S&MC\cw2\ball_tracking_cw2_pde4446_week12"
+venv\Scripts\activate
