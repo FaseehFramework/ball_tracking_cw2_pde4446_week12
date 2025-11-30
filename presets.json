@@ -1,0 +1,32 @@
+[
+    {
+        "name": "test from json",
+        "data": {
+            "h_min": 0,
+            "s_min": 187,
+            "v_min": 66,
+            "h_max": 179,
+            "s_max": 255,
+            "v_max": 133
+        }
+    },
+    {
+        "name": "My Color",
+        "data": {
+            "h_min": 144,
+            "s_min": 187,
+            "v_min": 66,
+            "h_max": 179,
+            "s_max": 255,
+            "v_max": 237
+        }
+    },
+    {
+        "name": "Slot 3",
+        "data": null
+    },
+    {
+        "name": "Slot 4",
+        "data": null
+    }
+]
