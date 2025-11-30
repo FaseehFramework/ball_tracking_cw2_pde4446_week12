@@ -242,7 +242,7 @@ class VideoCamera(object):
         d_tilt = errorTilt - self.prev_errorTilt
         delta_tilt = (errorTilt * config.TILT_P_GAIN) + (d_tilt * config.TILT_D_GAIN)
         delta_tilt = max(-config.MAX_SPEED, min(config.MAX_SPEED, delta_tilt))
-        self.current_tilt -= delta_tilt
+        self.current_tilt += delta_tilt
         self.prev_errorTilt = errorTilt
         
         self.smoothed_pan = max(-1.0, min(1.0, config.EMA_ALPHA * self.current_pan + (1 - config.EMA_ALPHA) * self.smoothed_pan))
