@@ -229,39 +229,44 @@ class VideoCamera(object):
         return frame, mask_visual
 
     def update_servos(self, target_x, target_y, center_x, center_y):
-        # PID Calculations
-        errorPan = target_x - center_x
-        errorTilt = target_y - center_y
-        
-        d_pan = errorPan - self.prev_errorPan
-        delta_pan = (errorPan * config.PAN_P_GAIN) + (d_pan * config.PAN_D_GAIN)
-        delta_pan = max(-config.MAX_SPEED, min(config.MAX_SPEED, delta_pan))
-        self.current_pan -= delta_pan
-        self.prev_errorPan = errorPan
+        # Only update servos if we are ready to send a command
+        current_time = time.time()
+        if current_time - self.last_command_time >= config.COMMAND_INTERVAL:
+            
+            # --- PID Calculations (Now coupled to Command Rate) ---
+            errorPan = target_x - center_x
+            errorTilt = target_y - center_y
+            
+            d_pan = errorPan - self.prev_errorPan
+            delta_pan = (errorPan * config.PAN_P_GAIN) + (d_pan * config.PAN_D_GAIN)
+            delta_pan = max(-config.MAX_SPEED, min(config.MAX_SPEED, delta_pan))
+            self.current_pan -= delta_pan
+            self.prev_errorPan = errorPan
 
-        d_tilt = errorTilt - self.prev_errorTilt
-        delta_tilt = (errorTilt * config.TILT_P_GAIN) + (d_tilt * config.TILT_D_GAIN)
-        delta_tilt = max(-config.MAX_SPEED, min(config.MAX_SPEED, delta_tilt))
-        self.current_tilt -= delta_tilt
-        self.prev_errorTilt = errorTilt
-        
-        self.smoothed_pan = max(-1.0, min(1.0, config.EMA_ALPHA * self.current_pan + (1 - config.EMA_ALPHA) * self.smoothed_pan))
-        self.smoothed_tilt = max(-1.0, min(1.0, config.EMA_ALPHA * self.current_tilt + (1 - config.EMA_ALPHA) * self.smoothed_tilt))
+            d_tilt = errorTilt - self.prev_errorTilt
+            delta_tilt = (errorTilt * config.TILT_P_GAIN) + (d_tilt * config.TILT_D_GAIN)
+            delta_tilt = max(-config.MAX_SPEED, min(config.MAX_SPEED, delta_tilt))
+            self.current_tilt -= delta_tilt
+            self.prev_errorTilt = errorTilt
+            
+            # Clamp and Smooth
+            # Note: We clamp internal state to -1.0 to 1.0 (Servo normalized range)
+            self.current_pan = max(-1.0, min(1.0, self.current_pan))
+            self.current_tilt = max(-1.0, min(1.0, self.current_tilt))
 
-        if self.ser and self.ser.is_open:
-            current_time = time.time()
-            if current_time - self.last_command_time >= config.COMMAND_INTERVAL:
-                
-                # --- CRITICAL FIX: ANTI-BLOCKING CHECK ---
+            self.smoothed_pan = max(-1.0, min(1.0, config.EMA_ALPHA * self.current_pan + (1 - config.EMA_ALPHA) * self.smoothed_pan))
+            self.smoothed_tilt = max(-1.0, min(1.0, config.EMA_ALPHA * self.current_tilt + (1 - config.EMA_ALPHA) * self.smoothed_tilt))
+
+            # --- Serial Command ---
+            if self.ser and self.ser.is_open:
                 try:
-                    # 1. Check if buffer is getting full (arbitrary limit, e.g., 64 bytes)
+                    # 1. Check for buffer overflow
                     if self.ser.out_waiting > 64:
-                        # Panic mode: Buffer is full, clear it and SKIP this command
                         self.ser.reset_output_buffer()
                         print("Buffer Overflow - Flushing")
                         return 
 
-                    # 2. Write with a timeout (handled by Serial init)
+                    # 2. Write Command
                     cmd = "{:.3f} {:.3f}\n".format(self.smoothed_pan, self.smoothed_tilt)
                     self.ser.write(cmd.encode('utf-8'))
                     self.last_command_time = current_time
