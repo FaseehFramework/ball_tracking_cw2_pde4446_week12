@@ -14,7 +14,11 @@ The system features a **web-based control interface** with dual detection modes 
 
 ### 1. **Dual Detection Modes**
 - **HSV Color Detection**: Traditional color-based tracking with real-time HSV calibration
+- ![HSV mode](https://github.com/FaseehFramework/ball_tracking_cw2_pde4446_week12/blob/master/images/hsv.png?raw=true)
+
 - **YOLO Object Detection**: Deep learning-based detection using a custom-trained YOLOv8 model
+- ![YOLOv8](https://github.com/FaseehFramework/ball_tracking_cw2_pde4446_week12/blob/master/images/yolo%20+%20red%20bg.png?raw=true)
+
 
 ### 2. **Web-Based Control Interface**
 - Live video feed with mask/debug visualization
@@ -38,8 +42,9 @@ The system features a **web-based control interface** with dual detection modes 
 
 ---
 
-## Project Structure
 
+![UI](https://github.com/FaseehFramework/ball_tracking_cw2_pde4446_week12/blob/master/images/UI.png?raw=true)
+## Project Structure
 ```
 project_root/
 ├── app.py                  # Flask web application (main entry point)
