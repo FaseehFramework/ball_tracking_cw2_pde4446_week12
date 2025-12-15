@@ -1,5 +1,7 @@
 # Pan & Tilt Ball Tracking Camera System
 
+## Video [link](https://youtu.be/2CsMqGAYLkQ)
+
 ## Project Overview
 
 This project implements an **automated pan-tilt camera tracking system** for Sensing and Motion Control applications. The system uses computer vision algorithms to detect and track colored objects (balls) in real-time, automatically adjusting servo motors to keep the target centered in the camera's field of view.
